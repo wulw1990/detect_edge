@@ -76,7 +76,8 @@ std::vector<std::vector<float>> SubDetectorFacetModel::ReadMasksFromFile(std::st
 	if (!ifs.is_open())
 	{
 		std::cerr << file_name << " can not open!" << std::endl;
-		return masks;
+		system("pause");
+		exit(-1);
 	}
 	for (int i = 0; i < 10; i++)
 	{

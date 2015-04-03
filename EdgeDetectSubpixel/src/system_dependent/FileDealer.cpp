@@ -76,7 +76,7 @@ bool FileDealer::GetFileList(std::string _dir, std::vector<std::string>& _file_n
 
 	while ((dirp = readdir(p)) != NULL)
 	{
-		if (dirp->d_type == DT_DIR)
+		if (dirp->d_type != DT_DIR)
 		//std::cout << "dir: " << dirp->d_name << std::endl;
 			_file_names.push_back(dirp->d_name);
 	}

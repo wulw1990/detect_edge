@@ -13,6 +13,7 @@
 
 #include <string>
 
+#if 0
 #include "SubDetectorBlurModel.h"
 #include "SubDetectorAreaEffect.h"
 #include "SubDetectorFacetModel.h"
@@ -55,3 +56,5 @@ int main(void)
 
 	system("pause");
 }
+
+#endif

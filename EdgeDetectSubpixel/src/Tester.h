@@ -13,12 +13,14 @@ public:
 		SubDetectorBase* detector,
 		std::string output_base_name);
 
-private:
 	void TestFileList(
-		std::string base_name, std::vector<std::string> name_list,
+		std::string base_name,
+		std::vector<std::string> name_list,
 		SubDetectorBase* detector,
 		std::string output_base_name);
 
+private:
+	
 	bool TestOneImage(
 		std::string full_name, 
 		SubDetectorBase* detector,
