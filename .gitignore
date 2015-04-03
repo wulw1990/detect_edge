@@ -1,0 +1,13 @@
+x32
+x64
+Debug
+Release
+
+*.sdf
+*.opensdf
+*.sln
+*.suo
+
+*.vcxproj
+*.filters
+*.user
