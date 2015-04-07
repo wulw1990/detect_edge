@@ -1,3 +1,5 @@
+#if 1
+
 #include "opencv2/opencv.hpp"
 
 #define CV_VERSION_ID CVAUX_STR(CV_MAJOR_VERSION) CVAUX_STR(CV_MINOR_VERSION) CVAUX_STR(CV_SUBMINOR_VERSION)
@@ -10,10 +12,13 @@
 #pragma comment( lib, cvLIB("core"))
 #pragma comment( lib, cvLIB("imgproc"))
 #pragma comment( lib, cvLIB("highgui"))
-
+/*
+* For lingyun test
+*/
 #include <string>
-
-#if 0
+#include <vector>
+#include <iostream>
+#include <time.h>
 #include "SubDetectorBlurModel.h"
 #include "SubDetectorAreaEffect.h"
 #include "SubDetectorFacetModel.h"
@@ -21,40 +26,49 @@
 #include "Tester.h"
 #include "./system_dependent/FileDealer.h"
 
-#include "TesterPixel.h"
+using namespace std;
 
-int main(void)
+int main()
 {
-	//TODO : make name list(chinese) automatically, not use python
-	//CMD -- ls /B
-#define TEST_SUB 0
-#if TEST_SUB
-	std::string base_name("D:\\No_Backup_BBNC\\LingYun\\");
-	std::string list_name("list.txt");
-	std::string output_base_name("D:\\No_Backup_BBNC\\LingYun\\output_edge\\");
+	string path = "./image/";
+	std::vector<std::string> list;
+	FileDealer::GetFileList(path, list);
+	//FileDealer::PrintStringList(list);
 
-	SubDetectorBase* detector;
+	SubDetectorBase* detector = NULL;
+	std::string output_path;
 
-	detector = new SubDetectorBlurModel();
-	//detector = new SubDetectorAreaEffect();
-	//detector = new SubDetectorFacetModel();
-	//detector = new SubDetectorSobelProjection();
+	for (int i = 1; i <= 4; ++i)//all in one 
+	{
+		switch (i)
+		{
+		case 1:
+			detector = new SubDetectorBlurModel();
+			output_path = string("./output_detector_blur_model/");
+			break;
+		case 2:
+			detector = new SubDetectorAreaEffect();
+			output_path = string("./output_detector_area_effect/");
+			break;
+		case 3:
+			detector = new SubDetectorFacetModel();
+			output_path = string("./output_detector_facet_model/");
+			break;
+		case 4:
+			detector = new SubDetectorSobelProjection();
+			output_path = string("./output_detector_sobel_projection/");
+			break;
+		default:
+			cerr << "wrong detector" << endl;
+			system("pause");
+		}
+		Tester* tester = new Tester();
+		tester->TestFileList(path, list, detector, output_path);
+	}
 
-	Tester* tester = new Tester();
-	tester->TestFileList(base_name, list_name, detector, output_base_name);
-#else
-	std::string base_name("D:\\No_Backup_BBNC\\LingYun\\PCBÂ³°ôÐÔ¼ì²â\\±ßÔµËã·¨Â³°ôÐÔÊµÑé-Í¼ÏñÀë½¹ÍË»¯-ÄÚ²ã°å8Î¢Ã×·Ö±æÂÊ\\Ðé½¹¶Ô±ÈÍ¼Ïñ\\");
-	std::string list_name("D:\\No_Backup_BBNC\\LingYun\\PCBÂ³°ôÐÔ¼ì²â\\±ßÔµËã·¨Â³°ôÐÔÊµÑé-Í¼ÏñÀë½¹ÍË»¯-ÄÚ²ã°å8Î¢Ã×·Ö±æÂÊ.txt");
-	std::string output_path("D:\\No_Backup_BBNC\\LingYun\\PCBÂ³°ôÐÔ¼ì²â\\±ßÔµËã·¨Â³°ôÐÔÊµÑé-Í¼ÏñÀë½¹ÍË»¯-ÄÚ²ã°å8Î¢Ã×·Ö±æÂÊ-result\\");
-
-	TesterPixel* tester_pixel = new TesterPixel();
-	tester_pixel->TestStrict(base_name, list_name, output_path);
-
-#endif
-
-
-
+	cout << "Program END" << endl;
 	system("pause");
 }
+
 
 #endif

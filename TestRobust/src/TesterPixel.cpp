@@ -2,55 +2,85 @@
 #include <fstream>
 #include <iostream>
 #include <time.h>
+#include <iomanip>
+
 #include "opencv2/opencv.hpp"
-#include "PixelEdgeDetector.h"
-#include "./system_dependent/FileDealer.h"
+#include "../../EdgeDetectSubpixel/src/PixelEdgeDetector.h"
+#include "../../EdgeDetectSubpixel/src/system_dependent/FileDealer.h"
+
+#include "ImageDifferStrict.h"
+#include "ImageDifferRelax.h"
 
 using namespace std;
 using namespace cv;
 
+bool TesterPixel::TestMultiMethod(
+	const std::string& path,
+	const std::string& list_name,
+	const std::string& output_path
+	)
+{
+	std::vector<std::string> list;
+	std::string reference_name;
+	if (!GerRefrenceAndList(path, list_name, reference_name, list))
+		return false;
+	return TestMultiMethod(path, reference_name, list, output_path);
+}
+bool TesterPixel::TestMultiMethod(
+	const std::string& path,
+	const std::string& reference_name,
+	const std::vector<std::string>& list,
+	const std::string& output_path)
+{
+	saveNames(reference_name, list, output_path + "name_list.txt");
+	return TestRelax(path, reference_name, list, true, output_path)	&& TestStrict(path, reference_name, list, true, output_path);
+	//return TestStrict(path, reference_name, list, true, output_path);
+}
+
 bool TesterPixel::TestStrict(
 	const std::string& path,
 	const std::string& list_name,
+	bool save_img,
 	const std::string& output_path)
 {
 	std::vector<std::string> list;
 	std::string reference_name;
 	if (!GerRefrenceAndList(path, list_name, reference_name, list))
 		return false;
-	return TestStrict(path, reference_name, list, output_path);
+	return TestStrict(path, reference_name, list, save_img, output_path);
 }
 
 bool TesterPixel::TestStrict(
 	const std::string& path,
 	const std::string& reference_name,
 	const std::vector<std::string>& list,
+	bool save_img,
 	const std::string& output_path)
 {
-	return Test(path, reference_name, list, output_path, CompareEdgeStrict);
+	ImageDifferBase* differ = new ImageDifferStrict("diff_strict");
+	return Test(path, reference_name, list, save_img, output_path, differ);
 }
-
-
-
 bool TesterPixel::TestRelax(
 	const std::string& path,
 	const std::string& list_name,
+	bool save_img,
 	const std::string& output_path)
 {
 	std::vector<std::string> list;
 	std::string reference_name;
 	if (!GerRefrenceAndList(path, list_name, reference_name, list))
 		return false;
-	return TestRelax(path, reference_name, list, output_path);
+	return TestRelax(path, reference_name, list, save_img, output_path);
 }
-
 bool TesterPixel::TestRelax(
 	const std::string& path,
 	const std::string& reference_name,
 	const std::vector<std::string>& list,
+	bool save_img,
 	const std::string& output_path)
 {
-	return Test(path, reference_name, list, output_path, CompareEdgeRelax);
+	ImageDifferBase* differ = new ImageDifferRelax("diff_relax");
+	return Test(path, reference_name, list, save_img, output_path, differ);
 }
 
 bool TesterPixel::GerRefrenceAndList(
@@ -81,8 +111,9 @@ bool TesterPixel::Test(
 	const std::string& path,
 	const std::string& reference_name,
 	const std::vector<std::string>& list,
+	bool save_img,
 	const std::string& output_path,
-	void CompareEdge(cv::Mat, cv::Mat, TestResultInfo&, std::string))
+	ImageDifferBase* differ)
 {
 	//check input output
 	if (!FileDealer::CreateDirectoryMy(output_path))
@@ -90,20 +121,22 @@ bool TesterPixel::Test(
 		fprintf(stderr, "can not mkdir : %s\n", output_path.c_str());
 		return false;
 	}
-	const string result_name("result.txt");
 
 	PixelEdgeDetector* detector = new PixelEdgeDetector();
 
+	cout << "Deal with Reference Image ..." << endl;
+	//cout << "\tName : " << reference_name << endl;
+	//system("pause");
+	clock_t start_time = clock();
 	Mat gray_reference;
 	Mat bw_reference;
 	gray_reference = imread(path+reference_name, 0);
-	if (gray_reference.empty())
-	{
-		fprintf(stderr, "image not exist : %s\n", (path + reference_name).c_str());
-		return false;
-	}
+	if (gray_reference.empty()) return errorFileNotExist(path + reference_name);
 	detector->Detect(gray_reference, bw_reference);
 	gray_reference.release();
+	if (save_img)
+		imwrite(output_path + reference_name, bw_reference);
+	cout << "\tDeal with Reference Image OK. Time = " << clock() - start_time << " ms" << endl;
 
 	const int n_files = (int)list.size();
 	vector<int> pos_error_count(n_files), pos_count(n_files);
@@ -112,20 +145,28 @@ bool TesterPixel::Test(
 
 	vector<TestResultInfo> infos(n_files);
 	bool success = true;
-#pragma omp parallel for
 	for (int i = 0; i < n_files; ++i)
 	{
+		cout << endl;
+		cout << setfill(' ');
+		cout << setw(4) << i + 1 << "/" << setw(4) << n_files << " " << differ->GetName()<< " Testing.. " << endl;
+		//cout << "\tName : " << list[i] << endl;
+		clock_t start_time = clock();
 		Mat bw, gray;
 		gray = imread(path + list[i], 0);
-		if (gray.empty())
-		{
-			fprintf(stderr, "image not exist : %s\n", (path + list[i]).c_str());
-			success = false;
-		}
+		if (gray.empty()) return errorFileNotExist(path + list[i]);
 		detector->Detect(gray, bw);
-		CompareEdge(bw_reference, bw, infos[i], output_path + list[i]);
+		Mat diff_mat;
+		differ->diff(bw_reference, bw, infos[i], diff_mat);
+		if (save_img)
+		{
+			imwrite(output_path + list[i], bw);
+			imwrite(output_path + list[i]+"."+differ->GetName() + ".bmp", diff_mat);
+		}
+		cout << "\t" << setw(4) << i + 1 << " OK. Time = " << clock() - start_time << " ms" << endl;
+		//system("pause");
 	}
-	WriteTestResultInfo(infos, path + result_name);
+	WriteTestResultInfo(infos, output_path + "test_result_" + differ->GetName()+".txt");
 	return success;
 }
 
@@ -150,104 +191,6 @@ void TesterPixel::PrintList(std::vector<std::string>& list)
 		cout << list[i] << endl;
 }
 
-
-void TesterPixel::CompareEdgeStrict(cv::Mat bw_base, cv::Mat bw,
-	TestResultInfo& info, std::string diff_img_name)
-{
-	//check input output
-	assert(bw_base.size() == bw.size());
-	assert(bw_base.type() == CV_8UC1);
-	assert(bw.type() == CV_8UC1);
-	const int rows = bw.rows;
-	const int cols = bw.cols;
-
-	Mat diff_mat(bw.size(), CV_8UC3);
-	diff_mat.setTo(Vec3b(0, 0, 0));
-
-	info.file_name = diff_img_name;
-	for (int r = 0; r < rows; ++r){
-		for (int c = 0; c < cols; ++c){
-			if (bw_base.at<unsigned char>(r, c) != 0){
-				info.pos_count++;
-				if (bw.at<unsigned char>(r, c) == 0){//该是的不是——漏检
-					diff_mat.at<Vec3b>(r, c) = Vec3b(0, 255, 255);//yellow
-					info.pos_error_count++;
-				}else
-					diff_mat.at<Vec3b>(r, c) = Vec3b(255, 0, 0);//blue
-			}
-			else{
-				info.neg_count++;
-				if (bw.at<unsigned char>(r, c) != 0){//不该是的是——多检
-					info.neg_error_count++;
-					diff_mat.at<Vec3b>(r, c) = Vec3b(0, 0, 255);//red
-				}
-			}
-		}
-	}
-	imwrite(diff_img_name, diff_mat);
-}
-
-void TesterPixel::CompareEdgeRelax(cv::Mat bw_base, cv::Mat bw,
-	TestResultInfo& info, std::string diff_img_name)
-{
-	//check input output
-	assert(bw_base.size() == bw.size());
-	assert(bw_base.type() == CV_8UC1);
-	assert(bw.type() == CV_8UC1);
-	const int rows = bw.rows;
-	const int cols = bw.cols;
-
-	Mat diff_mat(bw.size(), CV_8UC3);
-	diff_mat.setTo(Vec3b(0, 0, 0));
-
-	info.file_name = diff_img_name;
-	const int radius = 0;
-	for (int r = radius; r < rows - radius; ++r){
-		for (int c = radius; c < cols - radius; ++c){
-			if (bw_base.at<unsigned char>(r, c) != 0){
-				info.pos_count++;
-				bool flag = false;
-				for (int rr = r - radius; rr <= r + radius; ++rr){
-					for (int cc = c - radius; cc <= c + radius; ++cc){
-						if (bw.at<unsigned char>(rr, cc) != 0){
-							flag = true;
-							break;
-						}
-					}
-				}
-				if (!flag){//该是的不是——漏检
-					diff_mat.at<Vec3b>(r, c) = Vec3b(0, 255, 255);//yellow
-					info.pos_error_count++;
-				}else
-					diff_mat.at<Vec3b>(r, c) = Vec3b(255, 0, 0);//blue
-			}else
-				info.neg_count++;
-		}
-	}
-	for (int r = radius; r < rows - radius; ++r){
-		for (int c = radius; c < cols - radius; ++c){
-			if (bw.at<unsigned char>(r, c) != 0){//检查出来是边缘
-				bool flag = false;
-				for (int rr = r - radius; rr <= r + radius; ++rr){
-					for (int cc = c - radius; cc <= c + radius; ++cc){
-						if (bw_base.at<unsigned char>(rr, cc) != 0){
-							flag = true;
-							break;
-						}
-					}
-				}
-				if (!flag){//不该是的是——多检 ： 假阳性
-					info.neg_error_count++;
-					diff_mat.at<Vec3b>(r, c) = Vec3b(0, 0, 255);//red
-				}
-				else{
-					diff_mat.at<Vec3b>(r, c) = Vec3b(255, 0, 0);//blue
-				}
-			}
-		}
-	}
-}
-
 bool TesterPixel::WriteTestResultInfo(std::vector<TestResultInfo> infos, std::string name)
 {
 	const int n = (int)infos.size();
@@ -262,10 +205,26 @@ bool TesterPixel::WriteTestResultInfo(std::vector<TestResultInfo> infos, std::st
 		TestResultInfo& info = infos[i];
 		double FPR = (double)info.pos_error_count / (double)info.pos_count;
 		double FNR = (double)info.neg_error_count / (double)info.neg_count;
-		fprintf(file, "%s\t", info.file_name.c_str());
 		fprintf(file, "%10ld \t %10ld \t %.5lf", info.pos_error_count, info.pos_count, FPR);
 		fprintf(file, "%10ld \t %10ld \t %.5lf\n", info.neg_error_count, info.neg_count, FNR);
 	}
 	fclose(file);
 	return true;
+}
+
+void TesterPixel::saveNames(
+	const std::string& reference_name,
+	const std::vector<std::string>& list,
+	string output_name)
+{
+	ofstream ofs(output_name);
+	ofs << reference_name << endl;
+	for (int i = 0; i < (int)list.size(); ++i)
+		ofs << list[i] << endl;
+}
+
+bool TesterPixel::errorFileNotExist(string name)
+{
+	cerr << "File not exist : " << name << endl;
+	return false;
 }
