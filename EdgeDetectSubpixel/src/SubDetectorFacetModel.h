@@ -14,6 +14,12 @@ public:
 		std::vector<cv::Point2f>& subpixel_edge_points,
 		std::vector<float>& thetas);
 
+	bool Detect(
+		const cv::Mat src,
+		cv::Point pixel_edge_point,
+		cv::Point2f& subpixel_edge_point,
+		float& theta) override;
+
 	SubDetectorFacetModel();
 
 private:

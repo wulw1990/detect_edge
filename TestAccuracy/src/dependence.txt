@@ -1,0 +1,4 @@
+EdgeDetectSubpixel:
+	PixelEdgeDetector.cpp .h
+	SubDetectorBase.cpp .h
+	all the sub detectors 

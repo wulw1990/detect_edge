@@ -1,0 +1,6 @@
+EdgeDetectSubpixel:
+	PixelEdgeDetector.cpp
+	PixelEdgeDetector.h
+	Show.cpp
+	Show.h
+	system_dependent(all dir)

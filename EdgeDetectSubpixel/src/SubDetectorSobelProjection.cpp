@@ -59,7 +59,7 @@ void SubDetectorSobelProjection::Detect(
 			double offset_x = l / (k*k + 1);
 			double offset_y = k*offset_x;
 
-			pixel_edge_points.push_back(cv::Point( col, row));
+			pixel_edge_points.push_back(cv::Point(col, row));
 			subpixel_edge_points.push_back(cv::Point2f(float(offset_x + col), float(offset_y + row)));
 			//m_strength.push_back(strength);
 			thetas.push_back((float)g_theta);
@@ -129,7 +129,7 @@ void SubDetectorSobelProjection::Detect(
 			double offset_x = k*l / (k*k + 1);
 			double offset_y = k*offset_x;
 
-			pixel_edge_points.push_back(cv::Point( col, row));
+			pixel_edge_points.push_back(cv::Point(col, row));
 			subpixel_edge_points.push_back(cv::Point2f(float(offset_x + col), float(offset_y + row)));
 			//m_strength.push_back(strength);
 			thetas.push_back((float)g_theta);
@@ -165,7 +165,7 @@ void SubDetectorSobelProjection::Detect(
 			double offset_x = (l - k*l) / std::sqrt(2.0) / (k*k + 1);
 			double offset_y = k*offset_x;
 
-			pixel_edge_points.push_back(cv::Point( col, row));
+			pixel_edge_points.push_back(cv::Point(col, row));
 			subpixel_edge_points.push_back(cv::Point2f(float(offset_x + col), float(offset_y + row)));
 			//m_strength.push_back(strength);
 			thetas.push_back((float)g_theta);
@@ -206,6 +206,8 @@ SubDetectorSobelProjection::SubDetectorSobelProjection()
 	mask_y_.at<double>(2, 0) = 1;
 	mask_y_.at<double>(2, 1) = 2;
 	mask_y_.at<double>(2, 2) = 1;
+
+	m_method_name = "SobelProjection";
 }
 
 void SubDetectorSobelProjection::SobelPoint(cv::Mat img, cv::Point p, double* Gx, double* Gy,
@@ -228,4 +230,169 @@ void SubDetectorSobelProjection::SobelPoint(cv::Mat img, cv::Point p, double* Gx
 	if (std::abs(*Gy) < 1e-8)
 		*Gy = 1e-8;
 	*theta = std::atan((*Gx) / (*Gy));
+}
+
+bool SubDetectorSobelProjection::Detect(
+	const cv::Mat src,
+	cv::Point pixel_edge_point,
+	cv::Point2f& subpixel_edge_point,
+	float& theta_output)
+{
+	//-- step 1 : pixel_edge_detector--------------------
+	//no need (intput : pixel_edge_point)
+
+	cv::Mat bw;
+	cv::Canny(src, bw, 120, 100, 3);
+
+	const int r = 2;
+
+	const int col = pixel_edge_point.x;
+	const int row = pixel_edge_point.y;
+
+	//check x, y
+	if (col < r || col >= src.cols - r || row < r || row >= src.rows - r)
+		return false;
+
+	double Gx, Gy, strength, theta;
+	SobelPoint(src, cv::Point(col, row), &Gx, &Gy, &strength, &theta);
+
+	const double PI = 3.1415926;
+	double g_theta = theta + PI / 2.0;
+	if ((g_theta >= 0.0 && g_theta <= PI / 8.0) || (g_theta >= 7.0*PI / 8.0 && g_theta <= PI))
+	{
+		double A, B, C;
+		{
+			double Gx_tmp, Gy_tmp, theta_tmp;
+			SobelPoint(src, cv::Point(col - 1, row), &Gx_tmp, &Gy_tmp, &A, &theta_tmp);
+			SobelPoint(src, cv::Point(col, row), &Gx_tmp, &Gy_tmp, &B, &theta_tmp);
+			SobelPoint(src, cv::Point(col + 1, row), &Gx_tmp, &Gy_tmp, &C, &theta_tmp);
+		}
+
+		double a = (A + C - 2 * B) / 2.0;
+		double b = (C - A) / 2.0;
+		double c = B;
+
+		double k = std::tan(g_theta);
+		double l = -b / (2.0*a);
+		//y=kx
+		//(x,kx)*(l-x,0-kx) = l*x - x*x - k^2*x^2 = 0
+		//x = l / (k^2 + 1)
+		double offset_x = l / (k*k + 1);
+		double offset_y = k*offset_x;
+
+		subpixel_edge_point = cv::Point2f(float(offset_x + col), float(offset_y + row));
+		theta_output= (float)g_theta;
+#if PRINT_INFO
+		std::cout << (int)((g_theta - PI / 2.0) / 3.14159 * 180) << "\t";
+		//std::cout << a << "\t";
+		//std::cout << b << "\t";
+		//std::cout << c << "\t";
+		//std::cout << k << "\t";
+		std::cout << l << "\t";
+		std::cout << offset_x << "\t";
+		std::cout << offset_y << std::endl;
+#endif
+	}//if( (g_theta >= 0.0 && g_theta <= PI/8.0) || (g_theta >= 7.0*PI/8.0 && g_theta <= PI) )
+	if (g_theta >= PI / 8.0 && g_theta <= 3.0*PI / 8.0)
+	{
+		double A, B, C;
+		{
+			double Gx_tmp, Gy_tmp, theta_tmp;
+			SobelPoint(src, cv::Point(col - 1, row - 1), &Gx_tmp, &Gy_tmp, &A, &theta_tmp);
+			SobelPoint(src, cv::Point(col, row), &Gx_tmp, &Gy_tmp, &B, &theta_tmp);
+			SobelPoint(src, cv::Point(col + 1, row + 1), &Gx_tmp, &Gy_tmp, &C, &theta_tmp);
+		}
+
+		double a = (A + C - 2 * B) / 4.0;
+		double b = (C - A) / 2.0*std::sqrt(2.0);
+		double c = B;
+
+		double k = std::tan(g_theta);
+		double l = -b / (2.0*a);
+
+		double offset_x = (l + k*l) / std::sqrt(2.0) / (k*k + 1);
+		double offset_y = k*offset_x;
+
+		subpixel_edge_point = cv::Point2f(float(offset_x + col), float(offset_y + row));
+		theta_output = (float)g_theta;
+#if PRINT_INFO
+		std::cout << (int)((g_theta - PI / 2.0) / 3.14159 * 180) << "\t";
+		//std::cout << a << "\t";
+		//std::cout << b << "\t";
+		//std::cout << c << "\t";
+		//std::cout << k << "\t";
+		std::cout << l << "\t";
+		std::cout << offset_x << "\t";
+		std::cout << offset_y << std::endl;
+#endif
+	}//if( g_theta >= PI/8.0 && g_theta <= 3.0*PI/8.0 )
+	if (g_theta >= 3.0*PI / 8.0 && g_theta <= 5.0*PI / 8.0)
+	{
+		double A, B, C;
+		{
+			double Gx_tmp, Gy_tmp, theta_tmp;
+			SobelPoint(src, cv::Point(col, row - 1), &Gx_tmp, &Gy_tmp, &A, &theta_tmp);
+			SobelPoint(src, cv::Point(col, row), &Gx_tmp, &Gy_tmp, &B, &theta_tmp);
+			SobelPoint(src, cv::Point(col, row + 1), &Gx_tmp, &Gy_tmp, &C, &theta_tmp);
+		}
+
+		double a = (A + C - 2 * B) / 2.0;
+		double b = (C - A) / 2.0;
+		double c = B;
+
+		double k = std::tan(g_theta);
+		double l = -b / (2.0*a);
+
+		double offset_x = k*l / (k*k + 1);
+		double offset_y = k*offset_x;
+
+		subpixel_edge_point = cv::Point2f(float(offset_x + col), float(offset_y + row));
+		theta_output = (float)g_theta;
+#if PRINT_INFO
+		std::cout << (int)((g_theta - PI / 2.0) / 3.14159 * 180) << "\t";
+		//std::cout << a << "\t";
+		//std::cout << b << "\t";
+		//std::cout << c << "\t";
+		//std::cout << k << "\t";
+		std::cout << l << "\t";
+		std::cout << offset_x << "\t";
+		std::cout << offset_y << std::endl;
+#endif
+	}//if( g_theta >= 3.0*PI/8.0 && g_theta <= 5.0*PI/8.0 )
+
+	if (g_theta >= 5.0*PI / 8.0 && g_theta <= 7.0*PI / 8.0)
+	{
+		double A, B, C;
+		{
+			double Gx_tmp, Gy_tmp, theta_tmp;
+			SobelPoint(src, cv::Point(col - 1, row + 1), &Gx_tmp, &Gy_tmp, &A, &theta_tmp);
+			SobelPoint(src, cv::Point(col, row), &Gx_tmp, &Gy_tmp, &B, &theta_tmp);
+			SobelPoint(src, cv::Point(col + 1, row - 1), &Gx_tmp, &Gy_tmp, &C, &theta_tmp);
+		}
+
+		double a = (A + C - 2 * B) / 4.0;
+		double b = (C - A) / 2.0*std::sqrt(2.0);
+		double c = B;
+
+		double k = std::tan(g_theta);
+		double l = -b / (2.0*a);
+
+		double offset_x = (l - k*l) / std::sqrt(2.0) / (k*k + 1);
+		double offset_y = k*offset_x;
+
+		subpixel_edge_point = cv::Point2f(float(offset_x + col), float(offset_y + row));
+		theta_output = (float)g_theta;
+#if PRINT_INFO
+		std::cout << (int)((g_theta - PI / 2.0) / 3.14159 * 180) << "\t";
+		//std::cout << a << "\t";
+		//std::cout << b << "\t";
+		//std::cout << c << "\t";
+		//std::cout << k << "\t";
+		std::cout << l << "\t";
+		std::cout << offset_x << "\t";
+		std::cout << offset_y << std::endl;
+#endif
+	}//if( g_theta >= 5.0*PI/8.0 && g_theta <= 7.0*PI/8.0 )
+
+	return true;
 }

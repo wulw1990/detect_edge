@@ -247,3 +247,184 @@ void SubDetectorAreaEffect::SobelPoint(cv::Mat img, cv::Point p, double* Gx, dou
 		*Gy = 1e-8;
 	*theta = std::atan((*Gx) / (*Gy));
 }
+
+bool SubDetectorAreaEffect::Detect(
+	const cv::Mat src,
+	cv::Point pixel_edge_point,
+	cv::Point2f& subpixel_edge_point,
+	float& theta_output)
+{
+	//-- step 1 : pixel_edge_detector--------------------
+	//no need (input : pixel_edge_point)
+
+	const int r = 2;
+
+
+	const int col = pixel_edge_point.x;
+	const int row = pixel_edge_point.y;
+
+	//check x, y
+	if (col < r || col >= src.cols - r || row < r || row >= src.rows - r)
+		return false;
+
+	double Gx, Gy, strength, theta;
+	SobelPoint(src, cv::Point(col, row), &Gx, &Gy, &strength, &theta);
+
+	const double PI = 3.1415926;
+	if (theta >= 0.0 && theta <= PI / 4.0)
+	{
+		double A = 0;
+		double B = 0;
+		A += src.at<unsigned char>(row - 2, col);
+		A += src.at<unsigned char>(row - 2, col + 1);
+		A += src.at<unsigned char>(row - 1, col + 1);
+		A /= 3.0;
+		B += src.at<unsigned char>(row + 1, col - 1);
+		B += src.at<unsigned char>(row + 2, col - 1);
+		B += src.at<unsigned char>(row + 2, col);
+		B /= 3.0;
+
+		double SL = 0;
+		double SM = 0;
+		double SR = 0;
+		for (int r = row - 2; r <= row + 2; r++)
+		{
+			SL += src.at<unsigned char>(r, col - 1);
+			SM += src.at<unsigned char>(r, col);
+			SR += src.at<unsigned char>(r, col + 1);
+		}
+		double c = (SL + SR - 2.0*SM) / (2.0*(A - B));
+		double b = (SR - SL) / (2 * (A - B));
+		double a = (2.0*SM - 5 * (A + B)) / (2.0*(A - B)) - 1.0 / 12.0*c;
+
+		double offset_x = 0.0;
+		double offset_y = a;
+
+		double new_theta = std::atan(b / 1.0) + PI / 2;
+
+		subpixel_edge_point = cv::Point2f((float)(offset_x + col), (float)(offset_y + row));
+		theta_output = (float)new_theta;
+#if PRINT_INFO
+		std::cout << "1 " << (int)(new_theta / 3.14159 * 180) << std::endl;
+#endif
+	}//if( g_theta >= 0.0 && g_theta <= PI/4.0 )
+	else if (theta >= -PI / 4.0 && theta <= -0.0)
+	{
+		double A = 0;
+		double B = 0;
+		A += src.at<unsigned char>(row - 2, col - 1);
+		A += src.at<unsigned char>(row - 1, col - 1);
+		A += src.at<unsigned char>(row - 2, col);
+		A /= 3.0;
+		B += src.at<unsigned char>(row + 1, col + 1);
+		B += src.at<unsigned char>(row + 2, col + 1);
+		B += src.at<unsigned char>(row + 2, col);
+		B /= 3.0;
+
+		double SL = 0;
+		double SM = 0;
+		double SR = 0;
+		for (int r = row - 2; r <= row + 2; r++)
+		{
+			SL += src.at<unsigned char>(r, col - 1);
+			SM += src.at<unsigned char>(r, col);
+			SR += src.at<unsigned char>(r, col + 1);
+		}
+		double c = (SL + SR - 2.0*SM) / (2.0*(A - B));
+		double b = (SR - SL) / (2 * (A - B));
+		double a = (2.0*SM - 5 * (A + B)) / (2.0*(A - B)) - 1.0 / 12.0*c;
+
+		double offset_x = 0.0;
+		double offset_y = a;
+
+		double new_theta = std::atan(b / 1.0) + PI / 2;
+
+		subpixel_edge_point = cv::Point2f((float)(offset_x + col), (float)(offset_y + row));
+		theta_output = (float)new_theta;
+#if PRINT_INFO
+		std::cout << "4 " << (int)(new_theta / 3.14159 * 180) << std::endl;
+#endif
+	}//if( theta >= 3.0*PI/4.0 && theta <= PI )
+	else if (theta >= PI / 4.0 && theta <= 2.0*PI / 4.0)
+	{
+		double A = 0;
+		double B = 0;
+		A += src.at<unsigned char>(row, col - 2);
+		A += src.at<unsigned char>(row + 1, col - 1);
+		A += src.at<unsigned char>(row + 1, col - 2);
+		A /= 3.0;
+		B += src.at<unsigned char>(row - 1, col + 1);
+		B += src.at<unsigned char>(row - 1, col + 2);
+		B += src.at<unsigned char>(row, col + 2);
+		B /= 3.0;
+
+		double SL = 0;
+		double SM = 0;
+		double SR = 0;
+		for (int c = col - 2; c <= col + 2; c++)
+		{
+			SL += src.at<unsigned char>(row - 1, c);
+			SM += src.at<unsigned char>(row, c);
+			SR += src.at<unsigned char>(row + 1, c);
+		}
+		double c = (SL + SR - 2.0*SM) / (2.0*(A - B));
+		double b = (SR - SL) / (2 * (A - B));
+		double a = (2.0*SM - 5 * (A + B)) / (2.0*(A - B)) - 1.0 / 12.0*c;
+
+		double offset_x = a;
+		double offset_y = 0.0;
+
+		if (std::abs(b) < 1e-8)
+			b = 1e-8;
+		double new_theta = std::atan(1.0 / b) + PI / 2;
+
+		subpixel_edge_point = cv::Point2f((float)(offset_x + col), (float)(offset_y + row));
+		theta_output = (float)new_theta;
+#if PRINT_INFO
+		std::cout << "2 " << (int)(new_theta / 3.14159 * 180) << std::endl;
+#endif
+	}//if( theta >= PI/4.0 && theta <= 2.0*PI/4.0 )
+	else if (theta >= -2.0*PI / 4.0 && theta < -PI / 4.0)
+	{
+		double A = 0;
+		double B = 0;
+		A += src.at<unsigned char>(row - 1, col - 2);
+		A += src.at<unsigned char>(row - 1, col - 1);
+		A += src.at<unsigned char>(row, col - 2);
+		A /= 3.0;
+		B += src.at<unsigned char>(row + 1, col + 1);
+		B += src.at<unsigned char>(row + 1, col + 2);
+		B += src.at<unsigned char>(row, col + 2);
+		B /= 3.0;
+
+		double SL = 0;
+		double SM = 0;
+		double SR = 0;
+		for (int c = col - 2; c <= col + 2; c++)
+		{
+			SL += src.at<unsigned char>(row - 1, c);
+			SM += src.at<unsigned char>(row, c);
+			SR += src.at<unsigned char>(row + 1, c);
+		}
+		double c = (SL + SR - 2.0*SM) / (2.0*(A - B));
+		double b = (SR - SL) / (2 * (A - B));
+		double a = (2.0*SM - 5 * (A + B)) / (2.0*(A - B)) - 1.0 / 12.0*c;
+
+		double offset_x = a;
+		double offset_y = 0.0;
+
+		if (std::abs(b) < 1e-8)
+			b = 1e-8;
+		double new_theta = std::atan(1.0 / b) + PI / 2;
+
+		subpixel_edge_point = cv::Point2f((float)(offset_x + col), (float)(offset_y + row));
+		theta_output = (float)new_theta;
+#if PRINT_INFO
+		std::cout << "3 " << (int)(new_theta / 3.14159 * 180) << std::endl;
+#endif
+	}//if( theta >= 2.0*PI/4.0 && theta <= 3.0*PI/4.0 )
+	else
+		;
+
+	return true;
+}

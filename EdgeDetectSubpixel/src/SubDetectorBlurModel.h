@@ -7,11 +7,21 @@
 class SubDetectorBlurModel : public SubDetectorBase
 {
 public:
+	SubDetectorBlurModel(){
+		m_method_name = "BlurModel";
+	}
+
 	void Detect(
 		const cv::Mat src, 
 		std::vector<cv::Point>& pixel_edge_points,
 		std::vector<cv::Point2f>& subpixel_edge_points, 
-		std::vector<float>& thetas);
+		std::vector<float>& thetas) override;
+
+	bool Detect(
+		const cv::Mat src,
+		cv::Point pixel_edge_point,
+		cv::Point2f& subpixel_edge_point,
+		float& theta) override;
 
 private:
 	cv::Mat img_show;

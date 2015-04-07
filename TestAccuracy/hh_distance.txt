@@ -1,0 +1,20 @@
+
+AreaEffect
+distance pixel : 112.04 pixel
+distance subpixel : 111.994 pixel
+distance gt : 0 pixel
+
+BlurModel
+distance pixel : 112.04 pixel
+distance subpixel : 111.857 pixel
+distance gt : 0 pixel
+
+FacetModel
+distance pixel : 112.04 pixel
+distance subpixel : 111.727 pixel
+distance gt : 0 pixel
+
+SobelProjection
+distance pixel : 112.04 pixel
+distance subpixel : 111.785 pixel
+distance gt : 0 pixel

@@ -87,13 +87,13 @@ void SubDetectorBlurModel::Detect(
 		const double PI = 3.14159265354;
 		if (ThetaNearX(theta))
 		{
-			if (std::abs(sx)>2.0)
+			if (std::abs(sx) > 2.0)
 				sx = 0;
 			x_new += sx;
 		}
 		else
 		{
-			if (std::abs(sy)>2.0)
+			if (std::abs(sy) > 2.0)
 				sy = 0;
 			y_new += sy;
 		}
@@ -105,4 +105,93 @@ void SubDetectorBlurModel::Detect(
 	cv::imwrite("./output/img.bmp", img_show);
 	system("pause");
 #endif
+}
+
+bool SubDetectorBlurModel::Detect(
+	const cv::Mat src,
+	cv::Point pixel_edge_point,
+	cv::Point2f& subpixel_edge_point,
+	float& theta)
+{
+	const int a = 2;
+	const int n_rows = src.rows;
+	const int n_cols = src.cols;
+
+	//-- step 1 : pixel_edge_detector--------------------
+	//no need (input : pixel_edge_point)
+
+	//-- step 2 : calculate the first derivatives Ex, Ey, M(x,y)--------------------
+	cv::Mat kernel_x = (cv::Mat_<short>(3, 3) << -1, 0, 1, -2, 0, 2, -1, 0, 1);
+	cv::Mat kernel_y = (cv::Mat_<short>(3, 3) << -1, -2, -1, 0, 0, 0, 1, 2, 1);
+
+	cv::Mat gradient_x, gradient_y;
+	clock_t start_time = clock();
+	cv::filter2D(src, gradient_x, CV_16S, kernel_x);
+	cv::filter2D(src, gradient_y, CV_16S, kernel_y);
+
+	//-- step 3 : calculate the sx, sy, rho------------------------------------
+
+	const int x = pixel_edge_point.x;
+	const int y = pixel_edge_point.y;
+
+	//check x, y
+	if (x < a || x >= n_cols - a || y < a || y >= n_rows - a)
+		return false;
+
+	double theta_tmp = GetTheta(gradient_x.at<short>(y, x), gradient_y.at<short>(y, x));
+
+	double bl, br, M0, M1, M2;
+	double sx, sy, rho;
+	std::vector<double> f;
+	//-- calculate sx-------------------------------
+	bl = gradient_x.at<short>(y, x - a); // bl=f(-a);
+	br = gradient_x.at<short>(y, x + a); // br=f(+a);
+	f.clear();
+	for (int i = -a; i <= a; ++i)
+		f.push_back(gradient_x.at<short>(y, x + i));
+	M0 = cal_M(f, 0);
+	M1 = cal_M(f, 1);
+	M2 = cal_M(f, 2);
+	sx = a*(bl + br)*M1 - M0*M1 + (bl - br)*M2;
+	sx /= a*(bl + br)*M0 - M0*M0 + (bl - br)*M1;
+
+	//-- calculate sy----------------------------------
+	bl = gradient_y.at<short>(y - a, x); // bl=f(-a);
+	br = gradient_y.at<short>(y + a, x); // br=f(+a);
+	f.clear();
+	for (int i = -a; i <= a; ++i)
+		f.push_back(gradient_y.at<short>(y + i, x));
+	M0 = cal_M(f, 0);
+	M1 = cal_M(f, 1);
+	M2 = cal_M(f, 2);
+	sy = a*(bl + br)*M1 - M0*M1 + (bl - br)*M2;
+	sy /= a*(bl + br)*M0 - M0*M0 + (bl - br)*M1;
+
+	//-- calculate rho---------------------------
+	rho = std::abs(sx*sy) / std::sqrt(sx*sx + sy*sy);
+
+	//-- calculate the subpixel location
+	double x_new = (double)x;
+	double y_new = (double)y;
+	const double PI = 3.14159265354;
+	if (ThetaNearX(theta))
+	{
+		//std::cout << "ThetaNearX" << std::endl;
+		if (std::abs(sx) > 2.0)
+			sx = 0;
+		x_new += sx;
+	}
+	else
+	{
+		//std::cout << "ThetaNearY" << std::endl;
+
+		if (std::abs(sy) > 2.0)
+			sy = 0;
+		y_new += sy;
+	}
+
+	subpixel_edge_point= cv::Point2f((float)x_new, (float)y_new);
+	theta = (float)theta_tmp;
+
+	return true;
 }
