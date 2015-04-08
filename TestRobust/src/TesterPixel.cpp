@@ -7,6 +7,7 @@
 #include "opencv2/opencv.hpp"
 #include "../../EdgeDetectSubpixel/src/PixelEdgeDetector.h"
 #include "../../EdgeDetectSubpixel/src/system_dependent/FileDealer.h"
+#include "../../EdgeDetectSubpixel/src/infrastructure/Sorter.h"
 
 #include "ImageDifferStrict.h"
 #include "ImageDifferRelax.h"
@@ -95,6 +96,7 @@ bool TesterPixel::GerRefrenceAndList(
 		fprintf(stderr, "file not exist : %s\n", list_name.c_str());
 		return false;
 	}
+	(new Sorter())->sortFileNamesByNum(list);
 
 	const int n_files = (int)list.size();
 	if (n_files < 2)
@@ -104,6 +106,7 @@ bool TesterPixel::GerRefrenceAndList(
 	}
 	reference_name = list[0];
 	list.erase(list.begin());
+
 	return true;
 }
 
@@ -116,11 +119,27 @@ bool TesterPixel::Test(
 	ImageDifferBase* differ)
 {
 	//check input output
-	if (!FileDealer::CreateDirectoryMy(output_path))
+	if (!FileDealer::CreateDirectoryRecursive(output_path))
 	{
 		fprintf(stderr, "can not mkdir : %s\n", output_path.c_str());
 		return false;
 	}
+#if 1
+	cout << "清晰图像(reference_name):" << endl;
+	cout << reference_name << endl;
+	cout << endl;
+	cout << "测试图像列表(list):" << endl;
+	for (int i = 0; i < (int)list.size(); ++i)
+		cout << list[i] << endl;
+	cout << endl;
+	cout << "输出路径(output_path):" << endl;
+	cout << output_path << endl;
+	cout << endl;
+	cout << "注意：用文件夹中的第一个图像作为清晰图像(reference_name)" << endl;
+	cout << "请核对清晰图像(reference_name)的文件名是否有误" << endl;
+	cout << "如果确认，请按任意键继续；否则，请直接关闭窗口" << endl;
+	system("pause");
+#endif
 
 	PixelEdgeDetector* detector = new PixelEdgeDetector();
 
@@ -221,6 +240,7 @@ void TesterPixel::saveNames(
 	ofs << reference_name << endl;
 	for (int i = 0; i < (int)list.size(); ++i)
 		ofs << list[i] << endl;
+	ofs.clear();
 }
 
 bool TesterPixel::errorFileNotExist(string name)

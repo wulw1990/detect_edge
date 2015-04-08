@@ -1,4 +1,4 @@
-#if 1
+
 
 #include "opencv2/opencv.hpp"
 
@@ -12,6 +12,8 @@
 #pragma comment( lib, cvLIB("core"))
 #pragma comment( lib, cvLIB("imgproc"))
 #pragma comment( lib, cvLIB("highgui"))
+
+#if 0
 /*
 * For lingyun test
 */

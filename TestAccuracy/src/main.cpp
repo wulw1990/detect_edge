@@ -50,7 +50,7 @@ int main()
 	sub_detectors.push_back(new SubDetectorSobelProjection());
 
 	float distance_gt = 0;
-	string output_prefix = "hh";
+	string output_prefix = "hh\\";
 
 	tester->test(gray, distance_gt, sub_detectors, output_prefix);
 

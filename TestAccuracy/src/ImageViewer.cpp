@@ -59,7 +59,7 @@ void ImageViewer::show()
 	win_size.height = (int)((double)m_view_info.rect_in_image.height * m_view_info.scale);
 	
 	Mat tmp = m_image(m_view_info.rect_in_image).clone();
-	resize(tmp, tmp, win_size);
+	resize(tmp, tmp, win_size, 0, 0, INTER_NEAREST);
 	imshow(m_win_name, tmp);
 	cv::setMouseCallback(m_win_name, onMouse, &m_view_info);
 	waitKey(1);

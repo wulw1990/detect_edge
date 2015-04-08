@@ -26,6 +26,9 @@ private:
 	float getDistance(Point p1, Point p2);
 
 	Point GetNearestValidPoint(Mat gray, Point p);
+
+	void saveSubPixelEdgeResult(Mat gray, SubDetectorBase* sub_detector, string name);
+	void savePixelEdgeResult(Mat gray, string name);
 };
 
 #endif

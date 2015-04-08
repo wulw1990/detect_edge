@@ -24,7 +24,7 @@ bool PointGetter::getPoints(Mat img, int n, vector<Point>& points)
 	Size size_show;
 	size_show.width = (double)img_show.cols * scale;
 	size_show.height = (double)img_show.rows * scale;
-	resize(img_show, img_show, size_show);
+	resize(img_show, img_show, size_show, 0, 0, INTER_NEAREST);
 	cvtColor(img_show, img_show, CV_GRAY2BGR);
 
 	imshow(m_win_name, img_show);

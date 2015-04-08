@@ -1,3 +1,5 @@
+#if 0
+
 #include "opencv2/opencv.hpp"
 
 #define CV_VERSION_ID CVAUX_STR(CV_MAJOR_VERSION) CVAUX_STR(CV_MINOR_VERSION) CVAUX_STR(CV_SUBMINOR_VERSION)
@@ -14,6 +16,7 @@
 #include <string>
 #include "TesterPixel.h"
 
+bool ReadNameList(const std::string& txt_name, std::vector<std::string>& list);
 int main(void)
 {
 
@@ -26,3 +29,5 @@ int main(void)
 
 	system("pause");
 }
+
+#endif
