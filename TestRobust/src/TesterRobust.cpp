@@ -1,4 +1,4 @@
-#include "TesterPixel.h"
+#include "TesterRobust.h"
 #include <fstream>
 #include <iostream>
 #include <time.h>
@@ -15,115 +15,13 @@
 using namespace std;
 using namespace cv;
 
-bool TesterPixel::TestMultiMethod(
-	const std::string& path,
-	const std::string& list_name,
-	const std::string& output_path
-	)
-{
-	std::vector<std::string> list;
-	std::string reference_name;
-	if (!GerRefrenceAndList(path, list_name, reference_name, list))
-		return false;
-	return TestMultiMethod(path, reference_name, list, output_path);
-}
-bool TesterPixel::TestMultiMethod(
+
+bool TesterRobust::TestMultiMethod(
 	const std::string& path,
 	const std::string& reference_name,
 	const std::vector<std::string>& list,
 	const std::string& output_path)
 {
-	saveNames(reference_name, list, output_path + "name_list.txt");
-	return TestRelax(path, reference_name, list, true, output_path)	&& TestStrict(path, reference_name, list, true, output_path);
-	//return TestStrict(path, reference_name, list, true, output_path);
-}
-
-bool TesterPixel::TestStrict(
-	const std::string& path,
-	const std::string& list_name,
-	bool save_img,
-	const std::string& output_path)
-{
-	std::vector<std::string> list;
-	std::string reference_name;
-	if (!GerRefrenceAndList(path, list_name, reference_name, list))
-		return false;
-	return TestStrict(path, reference_name, list, save_img, output_path);
-}
-
-bool TesterPixel::TestStrict(
-	const std::string& path,
-	const std::string& reference_name,
-	const std::vector<std::string>& list,
-	bool save_img,
-	const std::string& output_path)
-{
-	ImageDifferBase* differ = new ImageDifferStrict("diff_strict");
-	return Test(path, reference_name, list, save_img, output_path, differ);
-}
-bool TesterPixel::TestRelax(
-	const std::string& path,
-	const std::string& list_name,
-	bool save_img,
-	const std::string& output_path)
-{
-	std::vector<std::string> list;
-	std::string reference_name;
-	if (!GerRefrenceAndList(path, list_name, reference_name, list))
-		return false;
-	return TestRelax(path, reference_name, list, save_img, output_path);
-}
-bool TesterPixel::TestRelax(
-	const std::string& path,
-	const std::string& reference_name,
-	const std::vector<std::string>& list,
-	bool save_img,
-	const std::string& output_path)
-{
-	ImageDifferBase* differ = new ImageDifferRelax("diff_relax");
-	return Test(path, reference_name, list, save_img, output_path, differ);
-}
-
-bool TesterPixel::GerRefrenceAndList(
-	const std::string& path,
-	const std::string& list_name,
-	std::string& reference_name,
-	std::vector<std::string>& list)
-{
-	//check input output
-	if (!ReadNameList(list_name, list))
-	{
-		fprintf(stderr, "file not exist : %s\n", list_name.c_str());
-		return false;
-	}
-	(new Sorter())->sortFileNamesByNum(list);
-
-	const int n_files = (int)list.size();
-	if (n_files < 2)
-	{
-		fprintf(stderr, "no enough image\n");
-		return false;
-	}
-	reference_name = list[0];
-	list.erase(list.begin());
-
-	return true;
-}
-
-bool TesterPixel::Test(
-	const std::string& path,
-	const std::string& reference_name,
-	const std::vector<std::string>& list,
-	bool save_img,
-	const std::string& output_path,
-	ImageDifferBase* differ)
-{
-	//check input output
-	if (!FileDealer::CreateDirectoryRecursive(output_path))
-	{
-		fprintf(stderr, "can not mkdir : %s\n", output_path.c_str());
-		return false;
-	}
 #if 1
 	cout << "ÇåÎúÍ¼Ïñ(reference_name):" << endl;
 	cout << reference_name << endl;
@@ -141,6 +39,43 @@ bool TesterPixel::Test(
 	system("pause");
 #endif
 
+	//check input output
+	FileDealer::CreateDirectoryRecursive(output_path);
+
+	saveNames(reference_name, list, output_path + "name_list.txt");
+	return TestRelax(path, reference_name, list, true, output_path)	&& TestStrict(path, reference_name, list, true, output_path);
+}
+
+bool TesterRobust::TestStrict(
+	const std::string& path,
+	const std::string& reference_name,
+	const std::vector<std::string>& list,
+	bool save_img,
+	const std::string& output_path)
+{
+	ImageDifferBase* differ = new ImageDifferStrict("diff_strict");
+	return Test(path, reference_name, list, save_img, output_path, differ);
+}
+bool TesterRobust::TestRelax(
+	const std::string& path,
+	const std::string& reference_name,
+	const std::vector<std::string>& list,
+	bool save_img,
+	const std::string& output_path)
+{
+	ImageDifferBase* differ = new ImageDifferRelax("diff_relax");
+	return Test(path, reference_name, list, save_img, output_path, differ);
+}
+
+
+bool TesterRobust::Test(
+	const std::string& path,
+	const std::string& reference_name,
+	const std::vector<std::string>& list,
+	bool save_img,
+	const std::string& output_path,
+	ImageDifferBase* differ)
+{
 	PixelEdgeDetector* detector = new PixelEdgeDetector();
 
 	cout << "Deal with Reference Image ..." << endl;
@@ -189,28 +124,8 @@ bool TesterPixel::Test(
 	return success;
 }
 
-bool TesterPixel::ReadNameList(const std::string& txt_name, std::vector<std::string>& list)
-{
-	//check input output
-	std::ifstream fin(txt_name.c_str());
-	if (!fin.is_open())
-		return false;
-	list.clear();
 
-	std::string name;
-	while (fin >> name)
-		list.push_back(name);
-	return true;
-}
-
-void TesterPixel::PrintList(std::vector<std::string>& list)
-{
-	const int n = (int)list.size();
-	for (int i = 0; i < n; ++i)
-		cout << list[i] << endl;
-}
-
-bool TesterPixel::WriteTestResultInfo(std::vector<TestResultInfo> infos, std::string name)
+bool TesterRobust::WriteTestResultInfo(std::vector<TestResultInfo> infos, std::string name)
 {
 	const int n = (int)infos.size();
 	FILE* file = fopen(name.c_str(), "w");
@@ -231,7 +146,7 @@ bool TesterPixel::WriteTestResultInfo(std::vector<TestResultInfo> infos, std::st
 	return true;
 }
 
-void TesterPixel::saveNames(
+void TesterRobust::saveNames(
 	const std::string& reference_name,
 	const std::vector<std::string>& list,
 	string output_name)
@@ -243,7 +158,7 @@ void TesterPixel::saveNames(
 	ofs.clear();
 }
 
-bool TesterPixel::errorFileNotExist(string name)
+bool TesterRobust::errorFileNotExist(string name)
 {
 	cerr << "File not exist : " << name << endl;
 	return false;

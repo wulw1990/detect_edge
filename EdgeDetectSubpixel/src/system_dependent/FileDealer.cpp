@@ -5,6 +5,9 @@
 #include <direct.h>
 #include <io.h>
 #include "dirent_ls.h"
+#include <time.h>
+#include <sstream>
+#include <windows.h>
 
 /*
 * make the dir recursively
@@ -89,7 +92,61 @@ bool FileDealer::GetFileList(std::string _dir, std::vector<std::string>& _file_n
 void FileDealer::PrintStringList(const std::vector<std::string>& _file_names)
 {
 	for (int i = 0, i_end = (int)_file_names.size(); i < i_end; ++i)
-	{
 		std::cout << _file_names[i] << std::endl;
+}
+
+//TODO
+//not very good, exe may has no authority to write
+bool FileDealer::GetFileListChinese(std::string dir, std::vector<std::string>& list)
+{
+	list.clear();
+	string cmd;
+
+	stringstream ss;
+	ss << "dir /B " << dir;
+	cmd = ss.str();
+
+	//cout << cmd << endl;
+	string result = exec(cmd);
+	//cout << result << endl;
+
+	ss.clear(); ss.str("");
+	ss << result;
+	string str;
+	while (ss >> str)
+		list.push_back(str);
+
+	return true;
+}
+
+bool FileDealer::ReadList(string name, vector<string> list)
+{
+	list.clear();
+	ifstream ifs(name);
+	if (!ifs.is_open())
+		return false;
+	string str;
+	while (ifs >> str)
+		list.push_back(str);
+	return true;
+}
+
+
+
+#include <string>
+#include <iostream>
+#include <stdio.h>
+
+//Replace popen and pclose with _popen and _pclose for Windows.
+std::string FileDealer::exec(string cmd) {
+	FILE* pipe = _popen(cmd.c_str(), "r");
+	if (!pipe) return "ERROR";
+	char buffer[128];
+	std::string result = "";
+	while (!feof(pipe)) {
+		if (fgets(buffer, 128, pipe) != NULL)
+			result += buffer;
 	}
+	_pclose(pipe);
+	return result;
 }

@@ -7,21 +7,27 @@
 #include "PointGetter.h"
 #include "Visualiser.h"
 
-void AccuracyTester::test(Mat gray, float distance_gt, vector<SubDetectorBase*> sub_detectors, string output_prefix)
+void AccuracyTester::test(Mat gray, vector<SubDetectorBase*> sub_detectors, string output_path)
 {
 	//check input, output
 	assert(gray.type() == CV_8UC1);
 	assert(!gray.empty());
-	size_t location = output_prefix.find_last_of("\\");
+	size_t location = output_path.find_last_of("\\");
 	if (location == std::string::npos)
-		location = output_prefix.find_last_of("/");
+		location = output_path.find_last_of("/");
 	if (location != std::string::npos)
-		FileDealer::CreateDirectoryRecursive(output_prefix.substr(0, location));
+		FileDealer::CreateDirectoryRecursive(output_path.substr(0, location));
+
+	const string full_name_shot(output_path + "shot.bmp");
+	const string full_name_txt(output_path + "result.txt");
+	const string full_name_points(output_path + "two_points.bmp");
+	const string full_name_pixel(output_path + "pixel.bmp");
+	const string full_prefix_subpixel(output_path + "subpixel_");
 
 	//take roi
 	Mat shot;
 	ImageViewer* viewer = new ImageViewer(1000, 700, "ImageViewer");
-	viewer->view(gray, output_prefix + "_roi.bmp", shot);
+	viewer->view(gray, full_name_shot, shot);
 
 	//get 2 points
 	PointGetter* point_getter = new PointGetter(1000, 700, "PointGetter");
@@ -34,53 +40,66 @@ void AccuracyTester::test(Mat gray, float distance_gt, vector<SubDetectorBase*> 
 	}
 
 	//measure the distance between 2 points, save result to disk
-	string ouput_txt = output_prefix + "_distance.txt";
-	ofstream ofs(ouput_txt);
+	ofstream fout(full_name_txt);
+
+	points[0] = GetNearestValidPoint(shot, points[0]);
+	points[1] = GetNearestValidPoint(shot, points[1]);
+
+	cout << endl;
+	fout << endl;
+	cout << "实际取得边缘点是：" << points[0] << "\t" << points[1] << endl;
+	fout << "实际取得边缘点是：" << points[0] << "\t" << points[1] << endl;
+
+	float distance_pixel = getDistance(points[0], points[1]);
+	cout << endl;
+	fout << endl;
+	cout << "测试结果如下：" << endl;
+	fout << "测试结果如下：" << endl;
+	cout << "像素精度距离 (单位像素) : " << endl;
+	fout << "像素精度距离 (单位像素) : " << endl;
+	cout << distance_pixel << endl;
+	fout << distance_pixel << endl;
+
+	savePixelEdgeResult(shot, full_name_pixel);
+	saveTwoPoints(shot, points[0], points[1], full_name_points);
+
 	for (int i = 0; i < sub_detectors.size(); ++i){
-		float distance_pixel, distance_subpixel;
-		getDistance(shot, points[0], points[1], sub_detectors[i], distance_pixel, distance_subpixel);
+		float distance_subpixel = getDistance(shot, points[0], points[1], sub_detectors[i]);
 
 		cout << endl;
-		cout << sub_detectors[i]->getName() << endl;
-		cout << "distance pixel : " << distance_pixel << " pixel" << endl;
-		cout << "distance subpixel : " << distance_subpixel << " pixel" << endl;
-		cout << "distance gt : " << distance_gt << " pixel" << endl;
+		fout << endl;
+		cout << sub_detectors[i]->getName() << ":" << endl;
+		fout << sub_detectors[i]->getName() << ":" << endl;
+		cout << distance_subpixel  << endl;
+		fout << distance_subpixel << endl;
 
-		ofs << endl;
-		ofs << sub_detectors[i]->getName() << endl;
-		ofs << "distance pixel : " << distance_pixel << " pixel" << endl;
-		ofs << "distance subpixel : " << distance_subpixel << " pixel" << endl;
-		ofs << "distance gt : " << distance_gt << " pixel" << endl;
-
-		savePixelEdgeResult(shot, output_prefix + "_result_pixel_" + "PixelEdge" + ".bmp");
-		saveSubPixelEdgeResult(shot, sub_detectors[i], output_prefix + "_result_sub_" + sub_detectors[i]->getName() + ".bmp");
+		saveSubPixelEdgeResult(shot, sub_detectors[i], full_prefix_subpixel + sub_detectors[i]->getName() + ".bmp");
 	}
-	ofs.close();
+	fout.close();
 	cout << endl;
-	cout << "Distance info saved to : " << ouput_txt << endl;
+	cout << "输出目录：" << output_path << endl;
 }
 
-void AccuracyTester::getDistance(
+float AccuracyTester::getDistance(
 	Mat gray,
 	Point p1, Point p2,
-	SubDetectorBase* sub_detector,
-	float& distance_pixel,
-	float& distance_subpixel)
+	SubDetectorBase* sub_detector)
 {
 	Point2f sub_p1;
 	float theta1;
 	if (!sub_detector->Detect(gray, p1, sub_p1, theta1)){
 		cerr << "AccuracyTester : sub_detector failed!" << endl;
-		return;
+		system("pause");
+		exit(-1);
 	}
 	Point2f sub_p2;
 	float theta2;
 	if (!sub_detector->Detect(gray, p2, sub_p2, theta2)){
 		cerr << "AccuracyTester : sub_detector failed!" << endl;
-		return;
+		system("pause");
+		exit(-1);
 	}
-	distance_pixel = getDistance(p1, p2);
-	distance_subpixel = getDistance(sub_p1, sub_p2);
+	return getDistance(sub_p1, sub_p2);
 }
 
 float AccuracyTester::getDistance(Point2f p1, Point2f p2)
@@ -117,7 +136,7 @@ Point AccuracyTester::GetNearestValidPoint(Mat gray, Point p)
 			}
 		}
 	}
-	return p;
+	return nearest;
 }
 
 void AccuracyTester::saveSubPixelEdgeResult(Mat gray, SubDetectorBase* sub_detector, string name)
@@ -130,6 +149,16 @@ void AccuracyTester::saveSubPixelEdgeResult(Mat gray, SubDetectorBase* sub_detec
 	Visualiser* visualiser = new Visualiser();
 	const int scale = 5;
 	visualiser->SaveEdgeDirection(gray, subpixel_points, thetas, scale, name);
+}
+void AccuracyTester::saveTwoPoints(Mat gray, Point2f p1, Point2f p2, string name)
+{
+	PixelEdgeDetector* detector = new PixelEdgeDetector();
+	Mat bw;
+	detector->Detect(gray, bw);
+	cvtColor(bw, bw, CV_GRAY2BGR);
+	bw.at<Vec3b>(p1.y, p1.x) = Vec3b(0, 0, 255);
+	bw.at<Vec3b>(p2.y, p2.x) = Vec3b(0, 0, 255);
+	imwrite(name, bw);
 }
 
 void AccuracyTester::savePixelEdgeResult(Mat gray, string name)

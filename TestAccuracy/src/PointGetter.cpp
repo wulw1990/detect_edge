@@ -31,6 +31,9 @@ bool PointGetter::getPoints(Mat img, int n, vector<Point>& points)
 	cv::setMouseCallback(m_win_name, onMouse, &m_view_info);
 	m_view_info.update_flag = false;
 
+	cout << endl;
+	cout << "点击屏幕取" << n << "个点" << endl;
+
 	while (1)
 	{
 		if (m_view_info.update_flag){
@@ -53,6 +56,11 @@ bool PointGetter::getPoints(Mat img, int n, vector<Point>& points)
 	}
 	waitKey(1000);
 	destroyWindow(m_win_name);
+	
+	cout << "取到的点坐标如下：" << endl;
+	for (int i = 0; i < (int)points.size(); ++i)
+		cout << points[i] << endl;
+
 	return (m_view_info.p_vec.size() == n);
 }
 

@@ -13,14 +13,12 @@ using namespace cv;
 class AccuracyTester
 {
 public:
-	void test(Mat gray, float distance_gt, vector<SubDetectorBase*> sub_detectors, string output_prefix);
+	void test(Mat gray, vector<SubDetectorBase*> sub_detectors, string output_path);
 private:
-	void getDistance(
+	float getDistance(
 		Mat gray,
 		Point p1, Point p2,
-		SubDetectorBase* sub_detector,
-		float& distance_pixel,
-		float& distance_subpixel);
+		SubDetectorBase* sub_detector);
 
 	float getDistance(Point2f p1, Point2f p2);
 	float getDistance(Point p1, Point p2);
@@ -29,6 +27,7 @@ private:
 
 	void saveSubPixelEdgeResult(Mat gray, SubDetectorBase* sub_detector, string name);
 	void savePixelEdgeResult(Mat gray, string name);
+	void saveTwoPoints(Mat gray, Point2f p1, Point2f p2, string name);
 };
 
 #endif

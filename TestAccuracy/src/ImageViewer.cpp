@@ -24,21 +24,13 @@ void ImageViewer::view(Mat img, string save_name, Mat& shot)
 			show();
 		}
 		char key = waitKey(30);
-		switch (key){
-		case 'q':
-			goto END;
-			break;
-		case 's':
+		if ((int)key == 13){
 			shot = m_image(m_view_info.rect_in_image).clone();
-			if (save_name.substr(save_name.length() - 3, 3) == "bmp"){
-				imwrite(save_name, shot);
-				cout << "Shot Saved To : " << save_name << endl;
-			}
-			goto END;
+			imwrite(save_name, shot);
+			cout << "½ØÍ¼±£´æÖÁ : " << save_name << endl;
 			break;
 		}
 	}
-END:
 	destroyWindow(m_win_name);
 	cout << "End of View" << endl;
 }
@@ -53,7 +45,7 @@ void ImageViewer::setScale()
 void ImageViewer::show()
 {
 	setScale();
-	cout << "scale : " << m_view_info.scale << endl;
+	//cout << "scale : " << m_view_info.scale << endl;
 	Size win_size;
 	win_size.width = (int)((double)m_view_info.rect_in_image.width * m_view_info.scale);
 	win_size.height = (int)((double)m_view_info.rect_in_image.height * m_view_info.scale);
@@ -93,9 +85,9 @@ void ImageViewer::onMouse(int event, int x, int y, int, void* data)
 		else{
 			//printf("x1=%d, y1=%d, x2=%d, y2=%d\n", info->p_down.x, info->p_down.y, x, y);
 			Rect rect_in_win(info->p_down.x, info->p_down.y, x - info->p_down.x + 1, y - info->p_down.y + 1);
-			cout << info->rect_in_image << endl;
+			//cout << info->rect_in_image << endl;
 			info->rect_in_image = transformRect(info->rect_in_image, rect_in_win, info->scale);
-			cout << info->rect_in_image << endl;
+			//cout << info->rect_in_image << endl;
 			info->update_flag = true;
 		}
 		break;

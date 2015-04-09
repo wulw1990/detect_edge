@@ -1,4 +1,4 @@
-#if 0
+#if 1
 
 #include "opencv2/opencv.hpp"
 
@@ -15,10 +15,14 @@
 
 #include <string>
 #include <vector>
+#include <iomanip>
+#include <time.h>
+#include <sstream>
 
 using namespace std;
 using namespace cv;
 
+#include "../../EdgeDetectSubpixel/src/system_dependent/FileDealer.h"
 
 #include "../../EdgeDetectSubpixel/src/SubDetectorBase.h"
 #include "../../EdgeDetectSubpixel/src/SubDetectorAreaEffect.h"
@@ -27,20 +31,36 @@ using namespace cv;
 #include "../../EdgeDetectSubpixel/src/SubDetectorSobelProjection.h"
 #include "AccuracyTester.h"
 
-bool errorFileNotExist(string name)
-{
-	cerr << "File not exist : " << name << endl;
-	return false;
-}
 
-void GetNearestValidPoint(vector<Point> src, Mat gray, vector<Point>& dst);
+string getOutputPath(string name)
+{
+	time_t tt = time(NULL);//这句返回的只是一个时间cuo
+	tm* t = localtime(&tt);
+	stringstream ss;
+	ss << setfill('0');
+	ss << "output_" << name << "_" 
+		<< setw(4) << t->tm_year + 1900 << "_"
+		<< setw(2) << t->tm_mon + 1 << "_"
+		<< setw(2) << t->tm_mday << "__"
+		<< setw(2) << t->tm_hour << "_"
+		<< setw(2) << t->tm_min << "_"
+		<< setw(2) << t->tm_sec << "\\";
+	return ss.str();
+}
 
 int main()
 {
-	string path("D:\\AutoSync\\MyProject\\BBNC凌云——重大仪器项目\\项目1——亚像素边缘检测\\精度验证\\边缘算法精度验证2015PCB机台图\\2015.01.07-PCB机台图\\");
-	string name("内层\\10um\\内层板-对焦清晰-10um-109-73-73-向上400脉冲-500um.bmp");
-	
-	Mat gray = imread(path + name, 0);
+	string path_image("image\\");
+	vector<string> list;
+	FileDealer::GetFileListChinese(path_image, list);
+	//cout << list.size() << endl;
+	if (list.size() != 1){
+		cerr << "image文件夹中应该有且只有一个图片" << endl;
+		system("pause");
+		return -1;
+	}
+
+	Mat gray = imread(path_image + list[0], 0);
 	assert(!gray.empty());
 
 	AccuracyTester* tester = new AccuracyTester();
@@ -51,10 +71,9 @@ int main()
 	sub_detectors.push_back(new SubDetectorFacetModel());
 	sub_detectors.push_back(new SubDetectorSobelProjection());
 
-	float distance_gt = 0;
-	string output_prefix = "hh\\";
+	string path_output = getOutputPath(list[0]);
 
-	tester->test(gray, distance_gt, sub_detectors, output_prefix);
+	tester->test(gray, sub_detectors, path_output);
 
 	system("pause");
 }
